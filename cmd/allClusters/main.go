@@ -35,20 +35,30 @@ func reason(clusterName string) {
 		return
 	}
 
+	nodes, err := kubereasoning.LoadNodesetFromKubectl()
+	if err != nil {
+		panic(err)
+	}
+
 	podSet, err := kubereasoning.LoadPodsetFromKubectl()
 	if err != nil {
 		panic(err)
 	}
+	allNodes, _ := nodes.Evaluate()
+	fmt.Printf("=====================\n %v (%v nodes) \n=====================\n", clusterName, len(allNodes))
+
 	podSummary(podSet, "Pod")
 	podSummary(podSet, "Job")
 	podSummary(podSet, "DaemonSet")
 }
 
 func podSummary(podSet *kubereasoning.PodSet, kind string) {
-	pods, _ := podSet.WithKind(kind).Evaluate() //WithIsHealthy(false).Evaluate()
-	//pods, err := podSet.With("metadata.name~>/kube/i").WithNamespace("kube-system").WithKind("DaemonSet").Evaluate()
-	fmt.Printf("============== %v %v ==============\n", kind, len(pods))
-	for i := range pods {
+	all := podSet.WithKind(kind)
+	unhealthy := all.WithIsHealthy(false)
+	pods, _ := all.Evaluate()                //.Evaluate()
+	unhealthyPods, _ := unhealthy.Evaluate() //.Evaluate()
+	fmt.Printf("= %v %v (%v unhealthy)\n", kind, len(pods), len(unhealthyPods))
+	for i := range unhealthyPods {
 		status, err := pods[i].LastStatusChange()
 		if err != nil {
 			fmt.Printf("%v %v [no conditions]\n", pods[i].NameSpace(), pods[i].Name())
