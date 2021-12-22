@@ -2,30 +2,22 @@ package kubereasoning
 
 import (
 	"fmt"
-	"reflect"
-	"strings"
 
 	"github.com/blues/jsonata-go"
 	"github.com/dyluth/kube-reasoning/kubeloader"
 )
 
 type PodSet struct {
-	Data         interface{}
-	QueryFilters []string // properties of `items` field, eg "[metadata.name~>`/kube/i`]"
+	data *kubeJsonata
 }
 
 // With returns a NEW PodSet with this additional filter
 // filter needs to be a valid jsonata filter for items field, eg: "[metadata.name~>`/kube/i`]"
-func (ps *PodSet) With(filter string) *PodSet {
-	if !strings.HasPrefix(filter, "[") {
-		filter = fmt.Sprintf("[%v]", filter)
+func (s *PodSet) With(filter string) *PodSet {
+	ps := PodSet{
+		data: s.data.With(filter),
 	}
-
-	ps2 := PodSet{
-		Data:         ps.Data,
-		QueryFilters: append(ps.QueryFilters, filter),
-	}
-	return &ps2
+	return &ps
 }
 
 func (ps *PodSet) WithNamespace(namespace string) *PodSet {
@@ -36,9 +28,6 @@ func (ps *PodSet) WithNamespace(namespace string) *PodSet {
 func (ps *PodSet) WithKind(kind string) *PodSet {
 	return ps.With(fmt.Sprintf("metadata.ownerReferences.kind='%v'", kind))
 }
-
-//
-//
 
 func (ps *PodSet) WithIsHealthy(healthy bool) *PodSet {
 	// status conditions [] status <True | False>
@@ -52,29 +41,15 @@ func (ps *PodSet) WithIsHealthy(healthy bool) *PodSet {
 }
 
 func (ps *PodSet) Evaluate() ([]Pod, error) {
-	q := strings.Join(ps.QueryFilters, "")
-	q = fmt.Sprintf("items%v", q)
-	e, err := jsonata.Compile(q)
+	podData, err := ps.data.Evaluate()
 	if err != nil {
 		return nil, err
 	}
-	res, err := e.Eval(ps.Data)
-	if err != nil {
-		return nil, err
+	pods := []Pod{}
+	for i := range podData {
+		pods = append(pods, Pod{data: podData[i].Data})
 	}
-
-	// if res is a slice, foreach the slices and bang each one into a pod struct, then return that slice
-	switch v := res.(type) {
-	case []interface{}:
-		v2 := res.([]interface{})
-		pods := []Pod{}
-		for i := range v2 {
-			pods = append(pods, Pod{data: v2[i]})
-		}
-		return pods, nil
-	default:
-		return nil, fmt.Errorf("unknown type...: %v - %v", reflect.TypeOf(res), v)
-	}
+	return pods, nil
 }
 
 type Pod struct {
@@ -105,8 +80,7 @@ func (p *Pod) LastStatusChange() (condition Condition, err error) {
 func LoadPodSetFromFile(filename string) (*PodSet, error) {
 	data, err := kubeloader.LoadFromFile(filename)
 	ps := PodSet{
-		Data:         data,
-		QueryFilters: []string{},
+		data: &kubeJsonata{Data: data},
 	}
 	return &ps, err
 }
@@ -114,8 +88,7 @@ func LoadPodSetFromFile(filename string) (*PodSet, error) {
 func LoadPodsetFromKubectl() (*PodSet, error) {
 	data, err := kubeloader.LoadFromKubectl("pod")
 	ps := PodSet{
-		Data:         data,
-		QueryFilters: []string{},
+		data: &kubeJsonata{Data: data},
 	}
 	return &ps, err
 }

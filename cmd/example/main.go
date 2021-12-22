@@ -50,7 +50,6 @@ func podSummary(podSet *kubereasoning.PodSet, kind string) {
 	unhealthy := kindSet.WithIsHealthy(false)
 	pods, _ := kindSet.Evaluate()
 	unhealthyPods, _ := unhealthy.Evaluate()
-	//pods, err := podSet.With("metadata.name~>/kube/i").WithNamespace("kube-system").WithKind("DaemonSet").Evaluate()
 	fmt.Printf("============== %v %v (%v unhealthy) ==============\n", kind, len(pods), len(unhealthyPods))
 	for i := range pods {
 		status, err := pods[i].LastStatusChange()

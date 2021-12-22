@@ -12,8 +12,10 @@ type NodeSet struct {
 }
 
 func (s *NodeSet) With(filter string) *NodeSet {
-	s.data = s.data.With(filter)
-	return s
+	ns := NodeSet{
+		data: s.data.With(filter),
+	}
+	return &ns
 }
 
 func (s *NodeSet) Evaluate() ([]Node, error) {
