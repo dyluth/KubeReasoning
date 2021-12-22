@@ -117,7 +117,7 @@ func (sfc *SimpleFileCache) Store(key string, data interface{}) error {
 		return err
 	}
 	defer f.Close()
-	dataBytes, err := json.Marshal(data)
+	dataBytes, err := json.MarshalIndent(data, "", "  ") //	json.Marshal(data)
 	if err != nil {
 		return err
 	}

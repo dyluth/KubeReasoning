@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	kubereasoning "github.com/dyluth/kube-reasoning"
 	"github.com/dyluth/kube-reasoning/kubeloader"
@@ -17,6 +16,26 @@ func main() {
 
 	// load from kubectl command line and store in a file cache
 	kubeloader.LoaderCache = &kubeloader.SimpleFileCache{}
+
+	nodeSet, err := kubereasoning.LoadNodesetFromKubectl()
+	if err != nil {
+		panic(err)
+	}
+	nodes, err := nodeSet.Evaluate()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("found %v nodes\n", len(nodes))
+	for i := range nodes {
+		status, err := nodes[i].LastStatusChange()
+		if err != nil {
+			fmt.Printf("  %v - [no conditions]\n", nodes[i].Name())
+
+		} else {
+			fmt.Printf("  %v - [%v:%v for %d hours]\n", nodes[i].Name(), status.Type, status.Status, status.HoursSince())
+		}
+	}
+
 	podSet, err := kubereasoning.LoadPodsetFromKubectl()
 	if err != nil {
 		panic(err)
@@ -27,16 +46,18 @@ func main() {
 }
 
 func podSummary(podSet *kubereasoning.PodSet, kind string) {
-	pods, _ := podSet.WithKind(kind).Evaluate() //WithIsHealthy(false).Evaluate()
+	kindSet := podSet.WithKind(kind)
+	unhealthy := kindSet.WithIsHealthy(false)
+	pods, _ := kindSet.Evaluate()
+	unhealthyPods, _ := unhealthy.Evaluate()
 	//pods, err := podSet.With("metadata.name~>/kube/i").WithNamespace("kube-system").WithKind("DaemonSet").Evaluate()
-	fmt.Printf("============== %v %v ==============\n", kind, len(pods))
+	fmt.Printf("============== %v %v (%v unhealthy) ==============\n", kind, len(pods), len(unhealthyPods))
 	for i := range pods {
 		status, err := pods[i].LastStatusChange()
 		if err != nil {
 			fmt.Printf("%v %v [no conditions]\n", pods[i].NameSpace(), pods[i].Name())
 		} else {
-			since := time.Since(status.LastTransitionTime)
-			fmt.Printf("%v %v [%v:%v for %d hours]\n", pods[i].NameSpace(), pods[i].Name(), status.Type, status.Status, since.Round(time.Hour)/time.Hour)
+			fmt.Printf("%v %v [%v:%v for %d hours]\n", pods[i].NameSpace(), pods[i].Name(), status.Type, status.Status, status.HoursSince())
 		}
 	}
 }
