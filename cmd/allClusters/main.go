@@ -1,22 +1,40 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"strings"
 	"time"
 
 	kubereasoning "github.com/dyluth/kube-reasoning"
 	"github.com/dyluth/kube-reasoning/kubeloader"
-	//"github.com/pkg/profile" // for memory profiling
 )
 
 func main() {
-	// defer profile.Start(profile.MemProfile).Stop()
-
-	// load from a specific file
-	//podSet, err := kubereasoning.LoadPodSetFromFile("cmd/example/getpods-Aexample.json")
+	var clusterFilter string
+	flag.StringVar(&clusterFilter, "filter", "", "only act on clusters that match to this string")
+	flag.Parse()
 
 	// load from kubectl command line and store in a file cache
 	kubeloader.LoaderCache = &kubeloader.SimpleFileCache{}
+
+	clusterNames, err := kubeloader.GetClusters(clusterFilter)
+	fmt.Printf("===Acting on the following clusters: \n  %v\n", strings.Join(clusterNames, "\n  "))
+	if err != nil {
+		panic(err)
+	}
+	for i := range clusterNames {
+		reason(clusterNames[i])
+	}
+}
+
+func reason(clusterName string) {
+	err := kubeloader.SetContext(clusterName)
+	if err != nil {
+		fmt.Printf("error switching context: %v\n", err)
+		return
+	}
+
 	podSet, err := kubereasoning.LoadPodsetFromKubectl()
 	if err != nil {
 		panic(err)
