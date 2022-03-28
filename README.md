@@ -22,3 +22,7 @@ This is early, but the extension points are:
     - on the CLI using kubectl 
     - using the kube client
     - connecting to the cluster this is running as a pod within
+
+
+## possible thngs to check
+* things being in container creating / pending for a long time

@@ -25,7 +25,7 @@ func GetClusters(filter string) ([]string, error) {
 					clusterNames = append(clusterNames, split[0])
 				}
 
-			} else {
+			} else if len(tidied) > 0 {
 				fmt.Printf("not sure what to do with line: [%v]\n", tidied)
 			}
 		}

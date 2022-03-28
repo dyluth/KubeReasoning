@@ -51,6 +51,8 @@ func (ps *kubeJsonata) Evaluate() ([]kubeJsonata, error) {
 			generic = append(generic, kubeJsonata{Data: v2[i]})
 		}
 		return generic, nil
+	case map[string]interface{}:
+		return []kubeJsonata{{Data: v}}, nil
 	default:
 		return nil, fmt.Errorf("unknown type...: %v - %v", reflect.TypeOf(res), v)
 	}

@@ -44,19 +44,26 @@ func reason(clusterName string) {
 	if err != nil {
 		panic(err)
 	}
+
+	jobSet, err := kubereasoning.LoadJobsetFromKubectl(podSet)
+	if err != nil {
+		panic(err)
+	}
+
 	allNodes, _ := nodes.Evaluate()
 	fmt.Printf("=====================\n %v (%v nodes) \n=====================\n", clusterName, len(allNodes))
 
 	podSummary(podSet, "Pod")
-	podSummary(podSet, "Job")
 	podSummary(podSet, "DaemonSet")
+	jobSummary(jobSet)
 }
 
 func podSummary(podSet *kubereasoning.PodSet, kind string) {
 	all := podSet.WithKind(kind)
 	unhealthy := all.WithIsHealthy(false)
-	pods, _ := all.Evaluate()                //.Evaluate()
-	unhealthyPods, _ := unhealthy.Evaluate() //.Evaluate()
+	pods, _ := all.Evaluate()
+	unhealthyPods, _ := unhealthy.Evaluate()
+
 	fmt.Printf("= %v %v (%v unhealthy)\n", kind, len(pods), len(unhealthyPods))
 	for i := range unhealthyPods {
 		status, err := pods[i].LastStatusChange()
@@ -66,5 +73,20 @@ func podSummary(podSet *kubereasoning.PodSet, kind string) {
 			since := time.Since(status.LastTransitionTime)
 			fmt.Printf("%v %v [%v:%v for %d hours]\n", pods[i].NameSpace(), pods[i].Name(), status.Type, status.Status, since.Round(time.Hour)/time.Hour)
 		}
+	}
+
+}
+
+func jobSummary(jobSet *kubereasoning.JobSet) {
+	allJobs, _ := jobSet.Evaluate()
+	unhealthy := jobSet.WithType(kubereasoning.JobFailed)
+	unhealthyJobs, _ := unhealthy.Evaluate()
+
+	fmt.Printf("= Jobs: %v (%v unhealthy)\n", len(allJobs), len(unhealthyJobs))
+
+	for i := range unhealthyJobs {
+		passed, failed, _ := unhealthyJobs[i].Counts()
+		pods, _ := unhealthyJobs[i].GetPods()
+		fmt.Printf("%v %v passed:%v/%v Pods:%v\n", unhealthyJobs[i].NameSpace(), unhealthyJobs[i].Name(), passed, passed+failed, len(pods))
 	}
 }
